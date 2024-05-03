@@ -2668,7 +2668,8 @@ module init_atm_cases
       integer :: nInterpPoints, ndims
 
       integer :: nfglevels_actual
-      integer, pointer :: index_qv
+      ! jdong
+      integer, pointer :: index_qv, index_qc, index_qr, index_qi, index_qs, index_qg
 
       integer, dimension(5) :: interp_list
       real (kind=RKIND) :: maskval
@@ -2682,6 +2683,8 @@ module init_atm_cases
       integer, dimension(:,:), pointer :: edgesOnEdge, cellsOnEdge, edgesOnCell, cellsOnCell
       real (kind=RKIND), dimension(:), pointer :: dvEdge, dcEdge, areaCell 
       real (kind=RKIND), dimension(:,:), pointer :: sorted_arr
+      ! jdong
+      real (kind=RKIND), dimension(:,:), pointer :: sorted_arrQ1,sorted_arrQ2,sorted_arrQ3,sorted_arrQ4, sorted_arrQ5
       integer, dimension(:), pointer :: bdyMaskCell
 
       type (field1DReal), pointer :: tempField
@@ -2787,6 +2790,12 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: t_fg
       real (kind=RKIND), dimension(:,:), pointer :: rh_fg
       real (kind=RKIND), dimension(:,:), pointer :: sh_fg
+      ! jdong
+      real (kind=RKIND), dimension(:,:), pointer :: qc_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qr_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qi_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qs_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qg_fg
       real (kind=RKIND), dimension(:,:), pointer :: gfs_z
       real (kind=RKIND), dimension(:,:), pointer :: p_fg
       real (kind=RKIND), dimension(:,:), pointer :: st_fg
@@ -2925,6 +2934,12 @@ module init_atm_cases
       call mpas_pool_get_array(fg, 't', t_fg)
       call mpas_pool_get_array(fg, 'rh', rh_fg)
       call mpas_pool_get_array(fg, 'sh', sh_fg)
+      ! jdong
+      call mpas_pool_get_array(fg, 'qc', qc_fg)
+      call mpas_pool_get_array(fg, 'qr', qr_fg)
+      call mpas_pool_get_array(fg, 'qi', qi_fg)
+      call mpas_pool_get_array(fg, 'qs', qs_fg)
+      call mpas_pool_get_array(fg, 'qg', qg_fg)
       call mpas_pool_get_array(fg, 'gfs_z', gfs_z)
       call mpas_pool_get_array(fg, 'p', p_fg)
 
@@ -2933,6 +2948,12 @@ module init_atm_cases
       nz = nz1 + 1
 
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      ! jdong
+      call mpas_pool_get_dimension(state, 'index_qc', index_qc)
+      call mpas_pool_get_dimension(state, 'index_qi', index_qi)
+      call mpas_pool_get_dimension(state, 'index_qs', index_qs)
+      call mpas_pool_get_dimension(state, 'index_qg', index_qg)
+      call mpas_pool_get_dimension(state, 'index_qr', index_qr)
 
       xnutr = 0.
       zd = 12000.
@@ -3480,6 +3501,12 @@ module init_atm_cases
              trim(field % field) == 'TT' .or. &
              trim(field % field) == 'RH' .or. &
              trim(field % field) == 'SPECHUMD' .or. &
+             ! jdong
+             trim(field % field) == 'QC' .or. &
+             trim(field % field) == 'QR' .or. &
+             trim(field % field) == 'QI' .or. &
+             trim(field % field) == 'QS' .or. &
+             trim(field % field) == 'QG' .or. &
              trim(field % field) == 'GHT' .or. &
              trim(field % field) == 'PMSL' .or. &
              trim(field % field) == 'PSFC' .or. &
@@ -3657,6 +3684,42 @@ module init_atm_cases
                latPoints => latCell
                lonPoints => lonCell
                call mpas_pool_get_array(fg, 'sh', destField2d)
+               ndims = 2
+            ! jdong
+            else if (trim(field % field) == 'QC' ) then
+               call mpas_log_write('Interpolating QC at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qc', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QR' ) then
+               call mpas_log_write('Interpolating QR at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qr', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QI' ) then
+               call mpas_log_write('Interpolating QI at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qi', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QS' ) then
+               call mpas_log_write('Interpolating QS at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qs', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QG' ) then
+               call mpas_log_write('Interpolating QG at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qg', destField2d)
                ndims = 2
             else if (trim(field % field) == 'GHT') then
                call mpas_log_write('Interpolating GHT at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
@@ -4262,7 +4325,6 @@ module init_atm_cases
       level_value = mpas_hash_size(level_hash)
       call mpas_hash_destroy(level_hash)
       deallocate(level_hash)
-
       if (too_many_fg_levs) then
          write(errstring,'(a,i4)') '       Please increase config_nfglevels to at least ', level_value
          call mpas_log_write('*******************************************************************', messageType=MPAS_LOG_ERR)
@@ -4601,6 +4663,12 @@ call mpas_log_write('Done with soil consistency check')
       ! Vertically interpolate meteorological data
       !  
       allocate(sorted_arr(2,nfglevels_actual))
+      ! jdong
+      allocate(sorted_arrQ1(2,nfglevels_actual))
+      allocate(sorted_arrQ2(2,nfglevels_actual))
+      allocate(sorted_arrQ3(2,nfglevels_actual))
+      allocate(sorted_arrQ4(2,nfglevels_actual))
+      allocate(sorted_arrQ5(2,nfglevels_actual))
 
       do iCell=1,nCells
 
@@ -4658,6 +4726,57 @@ call mpas_log_write('Done with soil consistency check')
                                         sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
          end do
 
+        ! jdong
+        ! vertical interpolation of hydrometeors
+         sorted_arrQ1(:,:) = -999.0
+         sorted_arrQ2(:,:) = -999.0
+         sorted_arrQ3(:,:) = -999.0
+         sorted_arrQ4(:,:) = -999.0
+         sorted_arrQ5(:,:) = -999.0
+         scalars(index_qc,:,iCell) = 0._RKIND
+         scalars(index_qr,:,iCell) = 0._RKIND
+         scalars(index_qi,:,iCell) = 0._RKIND
+         scalars(index_qs,:,iCell) = 0._RKIND
+         scalars(index_qg,:,iCell) = 0._RKIND
+         do k = 1, nfglevels_actual
+            sorted_arrQ1(1,k) = z_fg(k,iCell)
+            sorted_arrQ2(1,k) = z_fg(k,iCell)
+            sorted_arrQ3(1,k) = z_fg(k,iCell)
+            sorted_arrQ4(1,k) = z_fg(k,iCell)
+            sorted_arrQ5(1,k) = z_fg(k,iCell)
+            if (vert_level(k) == 200100.0) then
+               sorted_arrQ1(1,k) = 99999.0
+               sorted_arrQ2(1,k) = 99999.0
+               sorted_arrQ3(1,k) = 99999.0
+               sorted_arrQ4(1,k) = 99999.0
+               sorted_arrQ5(1,k) = 99999.0
+            endif
+            sorted_arrQ1(2,k) = max(0._RKIND,qc_fg(k,iCell))
+            sorted_arrQ2(2,k) = max(0._RKIND,qr_fg(k,iCell))
+            sorted_arrQ3(2,k) = max(0._RKIND,qi_fg(k,iCell))
+            sorted_arrQ4(2,k) = max(0._RKIND,qs_fg(k,iCell))
+            sorted_arrQ5(2,k) = max(0._RKIND,qg_fg(k,iCell))
+         end do
+
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ1)
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ2)
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ3)
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ4)
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ5)
+
+         do k = nVertLevels, 1, -1
+            target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
+            scalars(index_qc,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ1(:,1:nfglevels_actual-1), order=1, extrap=9)          
+            scalars(index_qr,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ2(:,1:nfglevels_actual-1), order=1, extrap=9)
+            scalars(index_qi,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ3(:,1:nfglevels_actual-1), order=1, extrap=9)
+            scalars(index_qs,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ4(:,1:nfglevels_actual-1), order=1, extrap=9)
+            scalars(index_qg,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ5(:,1:nfglevels_actual-1), order=1, extrap=9)
+         end do
 
          ! GHT
          sorted_arr(:,:) = -999.0
@@ -4753,6 +4872,8 @@ call mpas_log_write('Done with soil consistency check')
       end do
 
       deallocate(sorted_arr)
+      ! jdong
+      deallocate(sorted_arrQ1,sorted_arrQ2,sorted_arrQ3,sorted_arrQ4,sorted_arrQ5)
 
 
       ! Diagnose the water vapor mixing ratios:
@@ -5057,7 +5178,8 @@ call mpas_log_write('Done with soil consistency check')
       integer :: nInterpPoints, ndims
 
       integer :: nfglevels_actual
-      integer, pointer :: index_qv
+      ! jdong
+      integer, pointer :: index_qv, index_qc, index_qr, index_qi, index_qs, index_qg
 
       integer, dimension(5) :: interp_list
       real (kind=RKIND) :: msgval
@@ -5065,6 +5187,8 @@ call mpas_log_write('Done with soil consistency check')
       integer, dimension(:), pointer :: nEdgesOnCell
       integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnCell
       real (kind=RKIND), dimension(:,:), pointer :: sorted_arr
+      ! jdong
+      real (kind=RKIND), dimension(:,:), pointer :: sorted_arrQ1,sorted_arrQ2,sorted_arrQ3,sorted_arrQ4,sorted_arrQ5
 
       integer :: sfc_k
 
@@ -5115,6 +5239,12 @@ call mpas_log_write('Done with soil consistency check')
       real (kind=RKIND), dimension(:,:), pointer :: t_fg
       real (kind=RKIND), dimension(:,:), pointer :: rh_fg
       real (kind=RKIND), dimension(:,:), pointer :: sh_fg
+      ! jdong
+      real (kind=RKIND), dimension(:,:), pointer :: qc_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qr_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qi_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qs_fg
+      real (kind=RKIND), dimension(:,:), pointer :: qg_fg
       real (kind=RKIND), dimension(:,:), pointer :: p_fg
       real (kind=RKIND), dimension(:), pointer :: soilz
 
@@ -5199,12 +5329,24 @@ call mpas_log_write('Done with soil consistency check')
       call mpas_pool_get_array(fg, 't', t_fg)
       call mpas_pool_get_array(fg, 'rh', rh_fg)
       call mpas_pool_get_array(fg, 'sh', sh_fg)
+      ! jdong
+      call mpas_pool_get_array(fg, 'qc', qc_fg)
+      call mpas_pool_get_array(fg, 'qr', qr_fg)
+      call mpas_pool_get_array(fg, 'qi', qi_fg)
+      call mpas_pool_get_array(fg, 'qs', qs_fg)
+      call mpas_pool_get_array(fg, 'qg', qg_fg)
       call mpas_pool_get_array(fg, 'p', p_fg)
 
       call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
       nVertLevelsP1 = nVertLevels + 1
 
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      ! jdong
+      call mpas_pool_get_dimension(state, 'index_qc', index_qc)
+      call mpas_pool_get_dimension(state, 'index_qi', index_qi)
+      call mpas_pool_get_dimension(state, 'index_qs', index_qs)
+      call mpas_pool_get_dimension(state, 'index_qg', index_qg)
+      call mpas_pool_get_dimension(state, 'index_qr', index_qr)
 
       etavs = (1.0_RKIND - 0.252_RKIND) * pii / 2.0_RKIND
       rcv = rgas / (cp - rgas)
@@ -5267,6 +5409,12 @@ call mpas_log_write('Done with soil consistency check')
              trim(field % field) == 'TT' .or. &
              trim(field % field) == 'RH' .or. &
              trim(field % field) == 'SPECHUMD' .or. &
+             ! jdong
+             trim(field % field) == 'QC' .or. &
+             trim(field % field) == 'QR' .or. &
+             trim(field % field) == 'QI' .or. &
+             trim(field % field) == 'QS' .or. &
+             trim(field % field) == 'QG' .or. &
              trim(field % field) == 'GHT' .or. &
              trim(field % field) == 'SOILHGT' .or. &
              trim(field % field) == 'PRES' .or. &
@@ -5362,6 +5510,42 @@ call mpas_log_write('Done with soil consistency check')
                latPoints => latCell
                lonPoints => lonCell
                call mpas_pool_get_array(fg, 'sh', destField2d)
+               ndims = 2
+            ! jdong
+            else if (trim(field % field) == 'QC' ) then
+               call mpas_log_write('Interpolating QC at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qc', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QR' ) then
+               call mpas_log_write('Interpolating QR at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qr', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QI' ) then
+               call mpas_log_write('Interpolating QI at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qi', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QS' ) then
+               call mpas_log_write('Interpolating QS at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qs', destField2d)
+               ndims = 2
+            else if (trim(field % field) == 'QG' ) then
+               call mpas_log_write('Interpolating QG at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'qg', destField2d)
                ndims = 2
             else if (trim(field % field) == 'GHT') then
                call mpas_log_write('Interpolating GHT at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
@@ -5498,6 +5682,12 @@ call mpas_log_write('Done with soil consistency check')
       ! Vertically interpolate meteorological data
       !
       allocate(sorted_arr(2,nfglevels_actual))
+! jdong
+      allocate(sorted_arrQ1(2,nfglevels_actual))
+      allocate(sorted_arrQ2(2,nfglevels_actual))
+      allocate(sorted_arrQ3(2,nfglevels_actual))
+      allocate(sorted_arrQ4(2,nfglevels_actual))
+      allocate(sorted_arrQ5(2,nfglevels_actual))
 
       do iCell=1,nCells
 
@@ -5557,6 +5747,63 @@ call mpas_log_write('Done with soil consistency check')
             if (target_z < z_fg(1,iCell) .and. k < nVertLevels) spechum(k,iCell) = spechum(k+1,iCell)
          end do
 
+         ! jdong
+         ! vertical interpolation of hydrometeors
+         sorted_arrQ1(:,:) = -999.0
+         sorted_arrQ2(:,:) = -999.0
+         sorted_arrQ3(:,:) = -999.0
+         sorted_arrQ4(:,:) = -999.0
+         sorted_arrQ5(:,:) = -999.0
+         scalars(index_qc,:,iCell) = 0._RKIND
+         scalars(index_qr,:,iCell) = 0._RKIND
+         scalars(index_qi,:,iCell) = 0._RKIND
+         scalars(index_qs,:,iCell) = 0._RKIND
+         scalars(index_qg,:,iCell) = 0._RKIND
+         do k = 1, nfglevels_actual
+            sorted_arrQ1(1,k) = z_fg(k,iCell)
+            sorted_arrQ2(1,k) = z_fg(k,iCell)
+            sorted_arrQ3(1,k) = z_fg(k,iCell)
+            sorted_arrQ4(1,k) = z_fg(k,iCell)
+            sorted_arrQ5(1,k) = z_fg(k,iCell)
+            if (vert_level(k) == 200100.0) then
+               sorted_arrQ1(1,k) = 99999.0
+               sorted_arrQ2(1,k) = 99999.0
+               sorted_arrQ3(1,k) = 99999.0
+               sorted_arrQ4(1,k) = 99999.0
+               sorted_arrQ5(1,k) = 99999.0
+            endif
+            sorted_arrQ1(2,k) = max(0._RKIND,qc_fg(k,iCell))
+            sorted_arrQ2(2,k) = max(0._RKIND,qr_fg(k,iCell))
+            sorted_arrQ3(2,k) = max(0._RKIND,qi_fg(k,iCell))
+            sorted_arrQ4(2,k) = max(0._RKIND,qs_fg(k,iCell))
+            sorted_arrQ5(2,k) = max(0._RKIND,qg_fg(k,iCell))
+         end do
+
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ1)
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ2)
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ3)
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ4)
+         call mpas_quicksort(nfglevels_actual, sorted_arrQ5)
+         do k = nVertLevels, 1, -1
+            target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
+            scalars(index_qc,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ1(:,1:nfglevels_actual-1), order=1,extrap=0)            
+            scalars(index_qr,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ2(:,1:nfglevels_actual-1), order=1,extrap=0)
+            scalars(index_qi,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ3(:,1:nfglevels_actual-1), order=1,extrap=0)
+            scalars(index_qs,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ4(:,1:nfglevels_actual-1), order=1,extrap=0)
+            scalars(index_qg,k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                        sorted_arrQ5(:,1:nfglevels_actual-1), order=1,extrap=0)
+            if (target_z < z_fg(1,iCell) .and. k < nVertLevels) then
+               scalars(index_qc,k,iCell) = scalars(index_qc,k+1,iCell)
+               scalars(index_qr,k,iCell) = scalars(index_qr,k+1,iCell)
+               scalars(index_qi,k,iCell) = scalars(index_qi,k+1,iCell)
+               scalars(index_qs,k,iCell) = scalars(index_qs,k+1,iCell)                           
+               scalars(index_qg,k,iCell) = scalars(index_qg,k+1,iCell)                             
+            endif
+         end do
 
          ! PRESSURE
          sorted_arr(:,:) = -999.0
@@ -5598,6 +5845,7 @@ call mpas_log_write('Done with soil consistency check')
       end do
 
       deallocate(sorted_arr)
+      deallocate(sorted_arrQ1,sorted_arrQ2,sorted_arrQ3,sorted_arrQ4,sorted_arrQ5)
 
 
       ! Diagnose the water vapor mixing ratios:
@@ -6550,6 +6798,8 @@ call mpas_log_write('Done with soil consistency check')
              call mpas_log_write('extrap_type == 2 not implemented for target_z >= zf(1,nz)', messageType=MPAS_LOG_ERR)
              if (present(ierr)) ierr = 1
              return
+         else if (extrap_type == 9) then
+             vertical_interp = 0._RKIND 
          end if
          return
       end if
