@@ -7,7 +7,7 @@ module mpas_satmedmfvdifq_wrapper_mod
   type mpas_satmedmfvdifq_config_type
     logical :: sa3dtke      = .false.
     logical :: tte_edmf     = .false.
-    logical :: dspheat      = .false.
+    logical :: dspheat      = .true.
     logical :: use_oceanuv  = .false.
     logical :: do_canopy    = .false.
     logical :: cplaqm       = .false.
@@ -20,10 +20,10 @@ module mpas_satmedmfvdifq_wrapper_mod
 
     real(kind=RKIND) :: xkzm_m = 1.0_RKIND
     real(kind=RKIND) :: xkzm_h = 1.0_RKIND
-    real(kind=RKIND) :: xkzm_s = 0.7_RKIND
+    real(kind=RKIND) :: xkzm_s = 1.0_RKIND
     real(kind=RKIND) :: dspfac = 1.0_RKIND
-    real(kind=RKIND) :: bl_upfr = 1.0_RKIND
-    real(kind=RKIND) :: bl_dnfr = 1.0_RKIND
+    real(kind=RKIND) :: bl_upfr = 0.13_RKIND
+    real(kind=RKIND) :: bl_dnfr = 0.1_RKIND
     real(kind=RKIND) :: rlmx = 300.0_RKIND
     real(kind=RKIND) :: elmx = 300.0_RKIND
   end type mpas_satmedmfvdifq_config_type
@@ -118,7 +118,7 @@ contains
     real(kind=RKIND), allocatable :: dv(:,:), du(:,:), tdt(:,:)
     real(kind=RKIND), allocatable :: dtend(:,:,:)
     real(kind=RKIND), allocatable :: claie(:), cfch(:), cfrt(:), cclu(:), cpopu(:)
-    real(kind=RKIND) :: tem1, tem2
+    real(kind=RKIND) :: rho1, tem1, tem2
     integer, allocatable :: kpbl(:), kinver(:), dtidx(:,:)
 
     im = nCells
@@ -226,22 +226,24 @@ contains
       xmu(i) = max(coszen(i), 0.0_RKIND)
 
       ! UFS code uses z0 = 0.01*zorl, so zorl is in cm.
-      zorl(i) = max(z0_mpas(i), 1.0e-6_RKIND) * 100.0_RKIND
+      zorl(i) = min(max(z0_mpas(i), 1.0e-4_RKIND), 0.15_RKIND) * 100.0_RKIND
+
+      rho1 = prsl(i,1) / (rd * max(t1(i,1), 180.0_RKIND))
 
       tsea(i) = skin_temp(i)
-      heat(i) = shflx(i)/cp
+      heat(i) = shflx(i)/(rho1*cp)
 
       ! If MPAS gives latent heat flux W m-2, convert to kg m-2 s-1.
-      evap(i) = lhflx(i) / hvap
+      evap(i) = lhflx(i) / (rho1*hvap)
 
       stress(i) = max(stress_in(i), 0.0_RKIND)
       spd1(i) = max(sqrt(u1(i,1)**2 + v1(i,1)**2), 0.1_RKIND)
 
       u10m(i) = u10(i)
       v10m(i) = v10(i)
-      rbsoil(i) = rb_in(i)
-      fm(i) = max(fm_in(i), 1.0e-6_RKIND)
-      fh(i) = max(fh_in(i), 1.0e-6_RKIND)
+      rbsoil(i) = min(max(rb_in(i), -10.0_RKIND), 10.0_RKIND)
+      fm(i)     = min(max(fm_in(i), 1.0e-6_RKIND), 10.0_RKIND)
+      fh(i)     = min(max(fh_in(i), 1.0e-6_RKIND), 10.0_RKIND)
 
       ! If MPAS does not have rbsoil, start neutral.
 !     rbsoil(i) = 0.0_RKIND
@@ -259,11 +261,8 @@ contains
 ! z0 from MPAS is in meters; UFS uses zorl in cm
 ! Here we stay consistent with MPAS units (meters)
       tem1 = (z0_mpas(i) - z0lo) / (z0up - z0lo)
-! limit between 0 and 1
       tem1 = min(max(tem1, 0.0_RKIND), 1.0_RKIND)
-! ensure minimum vegetation fraction
       tem2 = max(sigmaf(i), 0.1_RKIND)
-! final function
       zvfun(i) = sqrt(tem1 * tem2)
 
       ! No inversion limiter initially.
@@ -277,6 +276,26 @@ contains
     index_of_x_wind = 2
     index_of_y_wind = 3
     index_of_process_pbl = 1
+
+
+    print*, 'TKE-EDMF input min/max: rb=', minval(rbsoil), maxval(rbsoil), &
+         ' fm=', minval(fm), maxval(fm), ' fh=', minval(fh), maxval(fh)
+    print*, 'TKE-EDMF input min/max: zorl=', minval(zorl), maxval(zorl), &
+         ' stress=', minval(stress), maxval(stress), ' spd1=', minval(spd1), maxval(spd1)
+    print*, 'TKE-EDMF input min/max: heat=', minval(heat), maxval(heat), &
+         ' evap=', minval(evap), maxval(evap), ' sigmaf=', minval(sigmaf), maxval(sigmaf)
+    print*, 'TKE-EDMF input min/max: p=', minval(prsl), maxval(prsl), &
+         ' t=', minval(t1), maxval(t1), ' qv=', minval(q1(:,:,ntqv)), maxval(q1(:,:,ntqv))
+    call flush(0)
+
+    if (any(rbsoil /= rbsoil) .or. any(fm /= fm) .or. any(fh /= fh) .or. &
+        any(zorl /= zorl) .or. any(heat /= heat) .or. any(evap /= evap)) then
+       print*, 'BAD TKE-EDMF input: NaN detected before satmedmfvdifq_run'
+       call flush(0)
+       errflg = 1
+       errmsg = 'NaN in TKE-EDMF wrapper input'
+       return
+    endif
 
     call satmedmfvdifq_run(im, km, ntrac, ntcw, ntrw, ntiw, ntke,       &
          grav, pi, rd, cp, rv, hvap, hfus, fv, eps, epsm1,             &
@@ -295,11 +314,24 @@ contains
          index_of_x_wind, index_of_y_wind, index_of_process_pbl,       &
          cfg%gen_tend, cfg%ldiag3d, errmsg, errflg)
 
-    if (errflg /= 0) return
+    if (errflg /= 0) then
+       print*, 'TKE-EDMF returned errflg=', errflg, ' errmsg=', trim(errmsg)
+       call flush(0)
+       return
+    endif
+
+    print*, 'TKE-EDMF raw output min/max: tdt=', minval(tdt), maxval(tdt), &
+         ' du=', minval(du), maxval(du), ' dv=', minval(dv), maxval(dv)
+    print*, 'TKE-EDMF raw output min/max: rtg_qv=', minval(rtg(:,:,ntqv)), maxval(rtg(:,:,ntqv)), &
+         ' rtg_qc=', minval(rtg(:,:,ntcw)), maxval(rtg(:,:,ntcw)), &
+         ' rtg_qi=', minval(rtg(:,:,ntiw)), maxval(rtg(:,:,ntiw))
+    print*, 'TKE-EDMF raw output min/max: hpbl=', minval(hpbl), maxval(hpbl), &
+         ' kpbl=', minval(kpbl), maxval(kpbl), ' tke=', minval(q1(:,:,ntke)), maxval(q1(:,:,ntke))
+    call flush(0)
 
     do k = 1, km
       do i = 1, im
-        ten_t_out(i,k) = tdt(i,k)
+        ten_t_out(i,k) = tdt(i,k) / exner_mid(i,k)
         ten_u_out(i,k) = du(i,k)
         ten_v_out(i,k) = dv(i,k)
         
